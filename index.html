@@ -1270,6 +1270,12 @@
           to Settings then Billing then Cancel"</div>
       </div>
 
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px;">
+        <button class="btn-accent" onclick="downloadSampleCSV()" style="font-size:12px;padding:8px 16px;">
+          ⬇ Download Sample CSV
+        </button>
+      </div>
+
       <div class="upload-zone" id="uploadZone">
         <input type="file" accept=".csv" id="csvFile" onchange="handleFile(this)" />
         <div class="upload-icon">📂</div>
@@ -1787,6 +1793,24 @@ Respond ONLY with valid JSON. No markdown, no backticks, no preamble. Exactly th
       batchResults = [];
     }
 
+    function downloadSampleCSV() {
+      const sample = `question,chunk_1,chunk_2,answer,ground_truth
+"What is the refund policy?","Our return policy allows customers to return any item within 30 days of purchase. Items must be in original packaging and unused condition. Contact support@company.com with your order number to initiate a return.","Refunds are processed within 5-7 business days after we receive the returned item. The refund is credited to the original payment method. Shipping costs are non-refundable unless the item was defective.","You can return items within 30 days. Refunds take 5-7 business days back to your original payment method. We also offer store credit as a faster alternative.","Items can be returned within 30 days in original packaging. Refunds process in 5-7 business days to the original payment method. Shipping is non-refundable unless defective."
+"How do I cancel my subscription?","To cancel your subscription go to Settings then click Billing then select Cancel Subscription. Your access continues until the end of the current billing period.","","You should email support to cancel your account and they will process it within 24 hours.","Go to Settings then Billing then Cancel Subscription. Access continues until end of billing period."
+"What payment methods do you accept?","We accept Visa, Mastercard, American Express, and PayPal. All transactions are encrypted and processed securely through Stripe.","For enterprise customers we also support wire transfers and purchase orders with net-30 payment terms.","We accept Visa, Mastercard, Amex, PayPal, and cryptocurrency payments including Bitcoin and Ethereum.","We accept Visa, Mastercard, Amex, and PayPal. Enterprise customers can use wire transfer or purchase orders."
+"Is there a free trial?","All new accounts include a 14-day free trial with full access to all features. No credit card required to start. At the end of the trial you can choose a paid plan or your account will automatically downgrade to the free tier.","The free tier includes up to 3 projects and 1GB storage. Paid plans start at $29/month for the Starter plan.","Yes we offer a 14-day free trial with no credit card needed. After the trial your account downgrades to the free tier automatically.","14-day free trial with full features, no credit card required. Downgrades to free tier automatically after trial."
+"How do I reset my password?","To reset your password click Forgot Password on the login page and enter your email address. You will receive a reset link within 5 minutes. The link expires after 24 hours.","If you do not receive the email check your spam folder. For SSO users password reset must be done through your identity provider.","Click Forgot Password on the login page and enter your email. Check your inbox and spam folder for the reset link.","Click Forgot Password on login page, enter email, receive reset link within 5 minutes. Link expires after 24 hours. SSO users reset through identity provider."`;
+
+      const blob = new Blob([sample], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'rag-doctor-sample.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
     function showBatchError(msg) { const e = document.getElementById('batchError'); e.textContent = msg; e.classList.add('active'); }
     function hideBatchError() { document.getElementById('batchError').classList.remove('active'); }
 
