@@ -1,477 +1,1463 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>RAG Doctor — Batch Eval Engine</title>
-<meta name="description" content="Diagnose your RAG system. Paste your retrieved chunks and generated answers — get scored across Faithfulness, Context Precision, Recall and Answer Relevance."/>
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap');
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAG Doctor — Batch Eval Engine</title>
+  <meta name="description"
+    content="Diagnose your RAG system. Paste your retrieved chunks and generated answers — get scored across Faithfulness, Context Precision, Recall and Answer Relevance." />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Sans:wght@400;500;600&display=swap');
 
-:root {
-  --bg: #0a0a0f;
-  --surface: #111118;
-  --surface2: #1a1a24;
-  --surface3: #20202e;
-  --border: #2a2a3a;
-  --border2: #383848;
-  --accent: #00ff88;
-  --amber: #f59e0b;
-  --red: #ff4466;
-  --blue: #38bdf8;
-  --text: #e8e8f0;
-  --muted: #6b6b80;
-  --muted2: #4a4a5a;
-  --good: #00ff88;
-  --warn: #f59e0b;
-  --bad: #ff4466;
-}
+    :root {
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --surface3: #20202e;
+      --border: #2a2a3a;
+      --border2: #383848;
+      --accent: #00ff88;
+      --amber: #f59e0b;
+      --red: #ff4466;
+      --blue: #38bdf8;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --muted2: #4a4a5a;
+      --good: #00ff88;
+      --warn: #f59e0b;
+      --bad: #ff4466;
+    }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Instrument Sans', sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
-}
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Instrument Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
 
-body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,255,136,0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,136,0.025) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 0;
-}
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0, 255, 136, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 136, 0.025) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
 
-.wrap { position: relative; z-index: 1; max-width: 960px; margin: 0 auto; padding: 36px 24px 80px; }
+    .wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 36px 24px 80px;
+    }
 
-/* HEADER */
-.header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 40px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
-.logo { font-family: 'Syne', sans-serif; font-size: 30px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
-.logo .green { color: var(--accent); }
-.logo .dim { color: var(--muted); }
-.logo .mode { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: 0.04em; display: block; margin-top: 5px; font-family: 'JetBrains Mono', monospace; }
-.badges { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.badge { font-family: 'JetBrains Mono', monospace; font-size: 10px; padding: 4px 10px; border-radius: 100px; letter-spacing: 0.06em; }
-.badge.green { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.3); color: var(--accent); }
-.badge.amber { background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); color: var(--amber); }
-.badge.blue { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.3); color: var(--blue); }
+    /* HEADER */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 40px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
 
-/* TABS */
-.tabs { display: flex; gap: 4px; margin-bottom: 28px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 4px; }
-.tab { flex: 1; padding: 10px; background: transparent; border: none; border-radius: 7px; color: var(--muted); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s; letter-spacing: 0.02em; }
-.tab.active { background: var(--surface2); color: var(--text); }
-.tab:hover:not(.active) { color: var(--text); }
+    .logo {
+      font-family: 'Syne', sans-serif;
+      font-size: 30px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1;
+    }
 
-.panel { display: none; }
-.panel.active { display: block; animation: fadeIn 0.25s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .logo .green {
+      color: var(--accent);
+    }
 
-/* SPEC CARD */
-.spec-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin-bottom: 20px; }
-.spec-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
-.spec-table { width: 100%; border-collapse: collapse; font-family: 'JetBrains Mono', monospace; font-size: 11.5px; }
-.spec-table th { text-align: left; color: var(--muted); font-weight: 500; padding: 6px 10px 6px 0; border-bottom: 1px solid var(--border); }
-.spec-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid rgba(42,42,58,0.5); color: var(--text); vertical-align: top; }
-.spec-table td.req { color: var(--accent); font-size: 10px; }
-.spec-table td.opt-tag { color: var(--amber); font-size: 10px; }
-.example-csv { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; color: var(--muted); line-height: 1.7; overflow-x: auto; white-space: pre; margin-top: 12px; }
-.example-csv .key { color: var(--blue); }
+    .logo .dim {
+      color: var(--muted);
+    }
 
-/* UPLOAD */
-.upload-zone { border: 2px dashed var(--border2); border-radius: 14px; padding: 48px 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: var(--surface); position: relative; margin-bottom: 20px; }
-.upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(0,255,136,0.03); }
-.upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
-.upload-icon { font-size: 36px; margin-bottom: 12px; }
-.upload-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.upload-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
+    .logo .mode {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      letter-spacing: 0.04em;
+      display: block;
+      margin-top: 5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-.file-preview { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; margin-bottom: 20px; align-items: center; justify-content: space-between; gap: 16px; }
-.file-preview.active { display: flex; }
-.file-info { display: flex; align-items: center; gap: 12px; }
-.file-icon { font-size: 20px; }
-.file-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
-.file-meta { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
-.file-clear { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 12px; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-family: 'Syne', sans-serif; font-weight: 600; transition: all 0.2s; }
-.file-clear:hover { border-color: var(--red); color: var(--red); }
+    .badges {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
 
-/* SETTINGS */
-.settings-row { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.setting-group { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; flex: 1; min-width: 160px; }
-.setting-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
-.setting-group select, .setting-group input[type=number] { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; padding: 6px 10px; width: 100%; outline: none; }
-.setting-group select:focus, .setting-group input[type=number]:focus { border-color: var(--accent); }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      letter-spacing: 0.06em;
+    }
 
-/* BUTTONS */
-.run-btn { width: 100%; padding: 16px; background: var(--accent); color: #000; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: 0.04em; border: none; border-radius: 12px; cursor: pointer; transition: all 0.2s; margin-bottom: 32px; }
-.run-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 30px rgba(0,255,136,0.25); }
-.run-btn:active { transform: translateY(0); }
-.run-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: none; }
-.btn-secondary { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; padding: 11px 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-.btn-secondary:hover { border-color: var(--text); color: var(--text); }
-.btn-accent { background: transparent; border: 1px solid var(--accent); color: var(--accent); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; padding: 11px 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-.btn-accent:hover { background: rgba(0,255,136,0.08); }
-.btn-export { background: transparent; border: 1px solid var(--blue); color: var(--blue); font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600; padding: 11px 20px; border-radius: 8px; cursor: pointer; transition: all 0.2s; }
-.btn-export:hover { background: rgba(56,189,248,0.08); }
+    .badge.green {
+      background: rgba(0, 255, 136, 0.1);
+      border: 1px solid rgba(0, 255, 136, 0.3);
+      color: var(--accent);
+    }
 
-/* ERROR */
-.error-box { background: rgba(255,68,102,0.08); border: 1px solid rgba(255,68,102,0.3); border-radius: 10px; padding: 14px 18px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--red); margin-bottom: 16px; display: none; line-height: 1.6; }
-.error-box.active { display: block; }
+    .badge.amber {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: var(--amber);
+    }
 
-/* PROGRESS */
-.progress-panel { display: none; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 28px; margin-bottom: 28px; }
-.progress-panel.active { display: block; }
-.prog-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-.prog-title { font-family: 'Syne', sans-serif; font-size: 16px; font-weight: 800; }
-.prog-count { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent); }
-.prog-bar-bg { height: 6px; background: var(--border); border-radius: 100px; overflow: hidden; margin-bottom: 20px; }
-.prog-bar-fill { height: 100%; background: linear-gradient(90deg, var(--accent), #00d4ff); border-radius: 100px; transition: width 0.4s ease; width: 0%; }
-.prog-log { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
-.log-row { display: flex; gap: 10px; align-items: flex-start; padding: 5px 8px; border-radius: 5px; }
-.log-row.done { background: rgba(0,255,136,0.05); }
-.log-row.running { background: rgba(0,212,255,0.05); }
-.log-row.error { background: rgba(255,68,102,0.05); }
-.log-num { color: var(--muted2); min-width: 28px; }
-.log-q { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-status { min-width: 60px; text-align: right; }
-.log-row.done .log-status { color: var(--good); }
-.log-row.running .log-status { color: var(--blue); }
-.log-row.error .log-status { color: var(--red); }
+    .badge.blue {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--blue);
+    }
 
-/* RESULTS */
-.results-section { display: none; }
-.results-section.active { display: block; animation: fadeIn 0.4s ease; }
+    /* TABS */
+    .tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
 
-.summary-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
-.sum-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; text-align: center; }
-.sum-val { font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-.sum-label { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+    .tab {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: none;
+      border-radius: 7px;
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.02em;
+    }
 
-.dim-bars { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 20px; }
-.dim-bar-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px 20px; }
-.dim-bar-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.dim-bar-name { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
-.dim-bar-score { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 500; }
-.dim-bar-bg { height: 5px; background: var(--border); border-radius: 100px; overflow: hidden; }
-.dim-bar-fill { height: 100%; border-radius: 100px; }
+    .tab.active {
+      background: var(--surface2);
+      color: var(--text);
+    }
 
-.blame-summary { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
-.blame-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--amber); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
-.blame-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
-.blame-stage { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; min-width: 90px; }
-.blame-bar-bg { flex: 1; height: 8px; background: var(--border); border-radius: 100px; overflow: hidden; }
-.blame-bar-fill { height: 100%; border-radius: 100px; }
-.blame-pct { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); min-width: 60px; text-align: right; }
+    .tab:hover:not(.active) {
+      color: var(--text);
+    }
 
-.insight-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 12px; padding: 20px 24px; margin-bottom: 20px; }
-.insight-title { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 12px; }
-.insight-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.insight-list li { font-size: 13px; color: var(--text); line-height: 1.6; padding-left: 16px; position: relative; }
-.insight-list li::before { content: '→'; position: absolute; left: 0; color: var(--accent); font-family: 'JetBrains Mono', monospace; }
+    .panel {
+      display: none;
+    }
 
-/* TABLE */
-.table-section { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 20px; }
-.table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
-.table-title { font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 700; }
-.table-sub { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); }
-table.rt { width: 100%; border-collapse: collapse; font-size: 12px; }
-table.rt th { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); background: var(--surface2); }
-table.rt td { padding: 10px 14px; border-bottom: 1px solid rgba(42,42,58,0.5); vertical-align: middle; }
-table.rt tr:last-child td { border-bottom: none; }
-table.rt tr:hover td { background: var(--surface2); }
-.score-pill { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 100px; }
-.score-pill.good { background: rgba(0,255,136,0.12); color: var(--good); }
-.score-pill.warn { background: rgba(245,158,11,0.12); color: var(--warn); }
-.score-pill.bad { background: rgba(255,68,102,0.12); color: var(--bad); }
-.q-cell { max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.verdict-cell { max-width: 260px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+    .panel.active {
+      display: block;
+      animation: fadeIn 0.25s ease;
+    }
 
-/* COST */
-.cost-strip { display: flex; align-items: center; justify-content: space-between; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; flex-wrap: wrap; gap: 12px; }
-.cost-item { text-align: center; }
-.cost-val { font-family: 'JetBrains Mono', monospace; font-size: 15px; font-weight: 500; color: var(--text); }
-.cost-label { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.06em; }
-.cost-divider { width: 1px; height: 32px; background: var(--border); }
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
 
-.action-row { display: flex; gap: 10px; flex-wrap: wrap; }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
 
-/* SINGLE */
-.manual-form { display: flex; flex-direction: column; gap: 14px; }
-.field label { font-family: 'Syne', sans-serif; font-size: 11px; font-weight: 700; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; display: block; margin-bottom: 5px; }
-.field label .opt { font-weight: 400; color: var(--muted); font-size: 10px; text-transform: none; letter-spacing: 0; margin-left: 6px; }
-.field textarea { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.7; padding: 12px 14px; resize: vertical; outline: none; width: 100%; min-height: 72px; transition: border-color 0.2s; }
-.field textarea:focus { border-color: var(--accent); }
-.field textarea::placeholder { color: var(--muted); }
-.chunks-wrap { display: flex; flex-direction: column; gap: 6px; }
-.chunk-row { display: flex; gap: 8px; align-items: flex-start; }
-.chunk-num { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 14px; min-width: 18px; }
-.remove-btn { background: transparent; border: none; color: var(--muted); cursor: pointer; font-size: 16px; margin-top: 12px; padding: 2px 6px; border-radius: 4px; transition: color 0.2s; }
-.remove-btn:hover { color: var(--red); }
-.add-chunk-btn { background: transparent; border: 1px dashed var(--border2); color: var(--muted); font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 600; padding: 9px; border-radius: 7px; cursor: pointer; transition: all 0.2s; width: 100%; }
-.add-chunk-btn:hover { border-color: var(--accent); color: var(--accent); }
+    /* SPEC CARD */
+    .spec-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
 
-.single-result { display: none; }
-.single-result.active { display: block; animation: fadeIn 0.3s ease; }
-.score-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 16px; }
-.score-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; position: relative; overflow: hidden; }
-.score-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
-.score-card.good::before { background: var(--good); }
-.score-card.warn::before { background: var(--warn); }
-.score-card.bad::before { background: var(--bad); }
-.score-card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; }
-.score-name { font-family: 'Syne', sans-serif; font-size: 12px; font-weight: 700; }
-.score-num { font-family: 'JetBrains Mono', monospace; font-size: 22px; }
-.score-card.good .score-num { color: var(--good); }
-.score-card.warn .score-num { color: var(--warn); }
-.score-card.bad .score-num { color: var(--bad); }
-.score-bar-bg2 { height: 3px; background: var(--border); border-radius: 100px; overflow: hidden; margin-bottom: 10px; }
-.score-bar-fill2 { height: 100%; border-radius: 100px; }
-.score-card.good .score-bar-fill2 { background: var(--good); }
-.score-card.warn .score-bar-fill2 { background: var(--warn); }
-.score-card.bad .score-bar-fill2 { background: var(--bad); }
-.score-expl { font-size: 11.5px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
-.score-fix { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; color: var(--text); background: var(--surface2); border-left: 2px solid var(--accent); padding: 6px 10px; border-radius: 0 5px 5px 0; line-height: 1.5; }
+    .spec-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
 
-/* FOOTER */
-.footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
-.footer-left { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--muted); }
-.footer-left a { color: var(--accent); text-decoration: none; }
-.footer-right { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted2); }
-</style>
+    .spec-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px;
+    }
+
+    .spec-table th {
+      text-align: left;
+      color: var(--muted);
+      font-weight: 500;
+      padding: 6px 10px 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .spec-table td {
+      padding: 7px 10px 7px 0;
+      border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+      color: var(--text);
+      vertical-align: top;
+    }
+
+    .spec-table td.req {
+      color: var(--accent);
+      font-size: 10px;
+    }
+
+    .spec-table td.opt-tag {
+      color: var(--amber);
+      font-size: 10px;
+    }
+
+    .example-csv {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      color: var(--muted);
+      line-height: 1.7;
+      overflow-x: auto;
+      white-space: pre;
+      margin-top: 12px;
+    }
+
+    .example-csv .key {
+      color: var(--blue);
+    }
+
+    /* UPLOAD */
+    .upload-zone {
+      border: 2px dashed var(--border2);
+      border-radius: 14px;
+      padding: 48px 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: var(--surface);
+      position: relative;
+      margin-bottom: 20px;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag {
+      border-color: var(--accent);
+      background: rgba(0, 255, 136, 0.03);
+    }
+
+    .upload-zone input {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+
+    .upload-icon {
+      font-size: 36px;
+      margin-bottom: 12px;
+    }
+
+    .upload-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .upload-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .file-preview {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .file-preview.active {
+      display: flex;
+    }
+
+    .file-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .file-icon {
+      font-size: 20px;
+    }
+
+    .file-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .file-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .file-clear {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: 'Syne', sans-serif;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+
+    .file-clear:hover {
+      border-color: var(--red);
+      color: var(--red);
+    }
+
+    /* SETTINGS */
+    .settings-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+
+    .setting-group {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 16px;
+      flex: 1;
+      min-width: 160px;
+    }
+
+    .setting-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .setting-group select,
+    .setting-group input[type=number] {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      padding: 6px 10px;
+      width: 100%;
+      outline: none;
+    }
+
+    .setting-group select:focus,
+    .setting-group input[type=number]:focus {
+      border-color: var(--accent);
+    }
+
+    /* BUTTONS */
+    .run-btn {
+      width: 100%;
+      padding: 16px;
+      background: var(--accent);
+      color: #000;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 32px;
+    }
+
+    .run-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 30px rgba(0, 255, 136, 0.25);
+    }
+
+    .run-btn:active {
+      transform: translateY(0);
+    }
+
+    .run-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--text);
+      color: var(--text);
+    }
+
+    .btn-accent {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-accent:hover {
+      background: rgba(0, 255, 136, 0.08);
+    }
+
+    .btn-export {
+      background: transparent;
+      border: 1px solid var(--blue);
+      color: var(--blue);
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      padding: 11px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-export:hover {
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    /* ERROR */
+    .error-box {
+      background: rgba(255, 68, 102, 0.08);
+      border: 1px solid rgba(255, 68, 102, 0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--red);
+      margin-bottom: 16px;
+      display: none;
+      line-height: 1.6;
+    }
+
+    .error-box.active {
+      display: block;
+    }
+
+    /* PROGRESS */
+    .progress-panel {
+      display: none;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      margin-bottom: 28px;
+    }
+
+    .progress-panel.active {
+      display: block;
+    }
+
+    .prog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .prog-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+    }
+
+    .prog-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--accent);
+    }
+
+    .prog-bar-bg {
+      height: 6px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .prog-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), #00d4ff);
+      border-radius: 100px;
+      transition: width 0.4s ease;
+      width: 0%;
+    }
+
+    .prog-log {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      max-height: 220px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .log-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 5px 8px;
+      border-radius: 5px;
+    }
+
+    .log-row.done {
+      background: rgba(0, 255, 136, 0.05);
+    }
+
+    .log-row.running {
+      background: rgba(0, 212, 255, 0.05);
+    }
+
+    .log-row.error {
+      background: rgba(255, 68, 102, 0.05);
+    }
+
+    .log-num {
+      color: var(--muted2);
+      min-width: 28px;
+    }
+
+    .log-q {
+      flex: 1;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .log-status {
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .log-row.done .log-status {
+      color: var(--good);
+    }
+
+    .log-row.running .log-status {
+      color: var(--blue);
+    }
+
+    .log-row.error .log-status {
+      color: var(--red);
+    }
+
+    /* RESULTS */
+    .results-section {
+      display: none;
+    }
+
+    .results-section.active {
+      display: block;
+      animation: fadeIn 0.4s ease;
+    }
+
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .sum-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .sum-val {
+      font-family: 'Syne', sans-serif;
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .sum-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .dim-bars {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .dim-bar-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+    }
+
+    .dim-bar-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .dim-bar-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .dim-bar-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .dim-bar-bg {
+      height: 5px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .dim-bar-fill {
+      height: 100%;
+      border-radius: 100px;
+    }
+
+    .blame-summary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .blame-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--amber);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .blame-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .blame-stage {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      min-width: 90px;
+    }
+
+    .blame-bar-bg {
+      flex: 1;
+      height: 8px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+
+    .blame-bar-fill {
+      height: 100%;
+      border-radius: 100px;
+    }
+
+    .blame-pct {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .insight-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin-bottom: 20px;
+    }
+
+    .insight-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .insight-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .insight-list li {
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.6;
+      padding-left: 16px;
+      position: relative;
+    }
+
+    .insight-list li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--accent);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* TABLE */
+    .table-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 20px;
+    }
+
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .table-title {
+      font-family: 'Syne', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .table-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    table.rt {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    table.rt th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+
+    table.rt td {
+      padding: 10px 14px;
+      border-bottom: 1px solid rgba(42, 42, 58, 0.5);
+      vertical-align: middle;
+    }
+
+    table.rt tr:last-child td {
+      border-bottom: none;
+    }
+
+    table.rt tr:hover td {
+      background: var(--surface2);
+    }
+
+    .score-pill {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      padding: 2px 8px;
+      border-radius: 100px;
+    }
+
+    .score-pill.good {
+      background: rgba(0, 255, 136, 0.12);
+      color: var(--good);
+    }
+
+    .score-pill.warn {
+      background: rgba(245, 158, 11, 0.12);
+      color: var(--warn);
+    }
+
+    .score-pill.bad {
+      background: rgba(255, 68, 102, 0.12);
+      color: var(--bad);
+    }
+
+    .q-cell {
+      max-width: 220px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .verdict-cell {
+      max-width: 260px;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* COST */
+    .cost-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .cost-item {
+      text-align: center;
+    }
+
+    .cost-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .cost-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .cost-divider {
+      width: 1px;
+      height: 32px;
+      background: var(--border);
+    }
+
+    .action-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    /* SINGLE */
+    .manual-form {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .field label {
+      font-family: 'Syne', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      display: block;
+      margin-bottom: 5px;
+    }
+
+    .field label .opt {
+      font-weight: 400;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: none;
+      letter-spacing: 0;
+      margin-left: 6px;
+    }
+
+    .field textarea {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      padding: 12px 14px;
+      resize: vertical;
+      outline: none;
+      width: 100%;
+      min-height: 72px;
+      transition: border-color 0.2s;
+    }
+
+    .field textarea:focus {
+      border-color: var(--accent);
+    }
+
+    .field textarea::placeholder {
+      color: var(--muted);
+    }
+
+    .chunks-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .chunk-row {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .chunk-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 14px;
+      min-width: 18px;
+    }
+
+    .remove-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      margin-top: 12px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      transition: color 0.2s;
+    }
+
+    .remove-btn:hover {
+      color: var(--red);
+    }
+
+    .add-chunk-btn {
+      background: transparent;
+      border: 1px dashed var(--border2);
+      color: var(--muted);
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 9px;
+      border-radius: 7px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+
+    .add-chunk-btn:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .single-result {
+      display: none;
+    }
+
+    .single-result.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .score-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .score-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .score-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+    }
+
+    .score-card.good::before {
+      background: var(--good);
+    }
+
+    .score-card.warn::before {
+      background: var(--warn);
+    }
+
+    .score-card.bad::before {
+      background: var(--bad);
+    }
+
+    .score-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+
+    .score-name {
+      font-family: 'Syne', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .score-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+    }
+
+    .score-card.good .score-num {
+      color: var(--good);
+    }
+
+    .score-card.warn .score-num {
+      color: var(--warn);
+    }
+
+    .score-card.bad .score-num {
+      color: var(--bad);
+    }
+
+    .score-bar-bg2 {
+      height: 3px;
+      background: var(--border);
+      border-radius: 100px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+
+    .score-bar-fill2 {
+      height: 100%;
+      border-radius: 100px;
+    }
+
+    .score-card.good .score-bar-fill2 {
+      background: var(--good);
+    }
+
+    .score-card.warn .score-bar-fill2 {
+      background: var(--warn);
+    }
+
+    .score-card.bad .score-bar-fill2 {
+      background: var(--bad);
+    }
+
+    .score-expl {
+      font-size: 11.5px;
+      color: var(--muted);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .score-fix {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      color: var(--text);
+      background: var(--surface2);
+      border-left: 2px solid var(--accent);
+      padding: 6px 10px;
+      border-radius: 0 5px 5px 0;
+      line-height: 1.5;
+    }
+
+    /* FOOTER */
+    .footer {
+      margin-top: 60px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-left {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .footer-left a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .footer-right {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted2);
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
+  <div class="wrap">
 
-  <div class="header">
-    <div class="logo-area">
-      <div class="logo">
-        RAG<span class="green">Doctor</span><span class="dim">.</span>
-        <span class="mode">// diagnose · evaluate · improve</span>
-      </div>
-    </div>
-    <div class="badges">
-      <span class="badge green">v0.2</span>
-      <span class="badge amber">BATCH MODE</span>
-      <span class="badge blue">CSV EXPORT</span>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <button class="tab active" onclick="switchTab('batch', this)">📦 Batch CSV Eval</button>
-    <button class="tab" onclick="switchTab('single', this)">🔬 Single Diagnosis</button>
-  </div>
-
-  <!-- ===== BATCH ===== -->
-  <div class="panel active" id="panel-batch">
-
-    <div class="spec-card">
-      <div class="spec-title">CSV Format — what to upload</div>
-      <table class="spec-table">
-        <thead><tr><th>Column</th><th>Description</th><th>Required?</th></tr></thead>
-        <tbody>
-          <tr><td>question</td><td>The user question sent to your RAG system</td><td class="req">required</td></tr>
-          <tr><td>chunk_1</td><td>First retrieved chunk text</td><td class="req">required</td></tr>
-          <tr><td>chunk_2 … chunk_5</td><td>Additional retrieved chunks (add as many columns as you have)</td><td class="opt-tag">optional</td></tr>
-          <tr><td>answer</td><td>The answer your RAG system generated</td><td class="req">required</td></tr>
-          <tr><td>ground_truth</td><td>The correct answer — enables Context Recall scoring</td><td class="opt-tag">optional</td></tr>
-        </tbody>
-      </table>
-      <div class="example-csv"><span class="key">question</span>,<span class="key">chunk_1</span>,<span class="key">chunk_2</span>,<span class="key">answer</span>,<span class="key">ground_truth</span>
-"What is the refund policy?","We offer 30-day returns on all items...","Items must be in original packaging...","You can return within 30 days","30-day return window, original packaging required"
-"How do I cancel my subscription?","To cancel go to Settings > Billing...","","Contact support to cancel","Go to Settings then Billing then Cancel"</div>
-    </div>
-
-    <div class="upload-zone" id="uploadZone">
-      <input type="file" accept=".csv" id="csvFile" onchange="handleFile(this)"/>
-      <div class="upload-icon">📂</div>
-      <div class="upload-title">Drop your CSV here or click to browse</div>
-      <div class="upload-sub">Accepts .csv · 100 rows max recommended</div>
-    </div>
-
-    <div class="file-preview" id="filePreview">
-      <div class="file-info">
-        <span class="file-icon">📄</span>
-        <div>
-          <div class="file-name" id="fileName">—</div>
-          <div class="file-meta" id="fileMeta">—</div>
+    <div class="header">
+      <div class="logo-area">
+        <div class="logo">
+          RAG<span class="green">Doctor</span><span class="dim">.</span>
+          <span class="mode">// diagnose · evaluate · improve</span>
         </div>
       </div>
-      <button class="file-clear" onclick="clearFile()">Remove</button>
-    </div>
-
-    <div class="settings-row">
-      <div class="setting-group">
-        <div class="setting-label">Concurrency</div>
-        <select id="concurrency">
-          <option value="1">1 at a time (safe)</option>
-          <option value="2" selected>2 parallel (balanced)</option>
-          <option value="3">3 parallel (fast)</option>
-        </select>
-      </div>
-      <div class="setting-group">
-        <div class="setting-label">Row limit</div>
-        <input type="number" id="rowLimit" value="20" min="1" max="100"/>
-      </div>
-      <div class="setting-group">
-        <div class="setting-label">Delay between calls</div>
-        <select id="delay">
-          <option value="0">No delay</option>
-          <option value="500" selected>500ms</option>
-          <option value="1000">1 second</option>
-        </select>
+      <div class="badges">
+        <span class="badge green">v0.2</span>
+        <span class="badge amber">BATCH MODE</span>
+        <span class="badge blue">CSV EXPORT</span>
       </div>
     </div>
 
-    <div class="error-box" id="batchError"></div>
-    <button class="run-btn" id="batchRunBtn" onclick="runBatch()">Run Batch Diagnosis →</button>
-
-    <div class="progress-panel" id="progressPanel">
-      <div class="prog-header">
-        <div class="prog-title">Running batch eval...</div>
-        <div class="prog-count" id="progCount">0 / 0</div>
-      </div>
-      <div class="prog-bar-bg"><div class="prog-bar-fill" id="progBar"></div></div>
-      <div class="prog-log" id="progLog"></div>
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('batch', this)">📦 Batch CSV Eval</button>
+      <button class="tab" onclick="switchTab('single', this)">🔬 Single Diagnosis</button>
     </div>
 
-    <div class="results-section" id="batchResults"></div>
-  </div>
+    <!-- ===== BATCH ===== -->
+    <div class="panel active" id="panel-batch">
 
-  <!-- ===== SINGLE ===== -->
-  <div class="panel" id="panel-single">
-    <div class="manual-form">
-      <div class="field">
-        <label>User Question</label>
-        <textarea id="s-question" rows="2" placeholder="What did the user ask your RAG system?"></textarea>
+      <div class="spec-card">
+        <div class="spec-title">CSV Format — what to upload</div>
+        <table class="spec-table">
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Description</th>
+              <th>Required?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>question</td>
+              <td>The user question sent to your RAG system</td>
+              <td class="req">required</td>
+            </tr>
+            <tr>
+              <td>chunk_1</td>
+              <td>First retrieved chunk text</td>
+              <td class="req">required</td>
+            </tr>
+            <tr>
+              <td>chunk_2 … chunk_5</td>
+              <td>Additional retrieved chunks (add as many columns as you have)</td>
+              <td class="opt-tag">optional</td>
+            </tr>
+            <tr>
+              <td>answer</td>
+              <td>The answer your RAG system generated</td>
+              <td class="req">required</td>
+            </tr>
+            <tr>
+              <td>ground_truth</td>
+              <td>The correct answer — enables Context Recall scoring</td>
+              <td class="opt-tag">optional</td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="example-csv"><span class="key">question</span>,<span class="key">chunk_1</span>,<span
+            class="key">chunk_2</span>,<span class="key">answer</span>,<span class="key">ground_truth</span>
+          "What is the refund policy?","We offer 30-day returns on all items...","Items must be in original
+          packaging...","You can return within 30 days","30-day return window, original packaging required"
+          "How do I cancel my subscription?","To cancel go to Settings > Billing...","","Contact support to cancel","Go
+          to Settings then Billing then Cancel"</div>
       </div>
-      <div class="field">
-        <label>Retrieved Chunks <span class="opt">(add each separately)</span></label>
-        <div class="chunks-wrap" id="s-chunksWrap">
-          <div class="chunk-row">
-            <span class="chunk-num">1</span>
-            <textarea class="s-chunk" rows="3" placeholder="Chunk 1 text from your retrieval system..."></textarea>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" accept=".csv" id="csvFile" onchange="handleFile(this)" />
+        <div class="upload-icon">📂</div>
+        <div class="upload-title">Drop your CSV here or click to browse</div>
+        <div class="upload-sub">Accepts .csv · 100 rows max recommended</div>
+      </div>
+
+      <div class="file-preview" id="filePreview">
+        <div class="file-info">
+          <span class="file-icon">📄</span>
+          <div>
+            <div class="file-name" id="fileName">—</div>
+            <div class="file-meta" id="fileMeta">—</div>
           </div>
         </div>
-        <button class="add-chunk-btn" onclick="addSingleChunk()">+ Add chunk</button>
+        <button class="file-clear" onclick="clearFile()">Remove</button>
       </div>
-      <div class="field">
-        <label>Generated Answer</label>
-        <textarea id="s-answer" rows="3" placeholder="The answer your RAG system produced..."></textarea>
+
+      <div class="settings-row">
+        <div class="setting-group">
+          <div class="setting-label">Concurrency</div>
+          <select id="concurrency">
+            <option value="1">1 at a time (safe)</option>
+            <option value="2" selected>2 parallel (balanced)</option>
+            <option value="3">3 parallel (fast)</option>
+          </select>
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">Row limit</div>
+          <input type="number" id="rowLimit" value="20" min="1" max="100" />
+        </div>
+        <div class="setting-group">
+          <div class="setting-label">Delay between calls</div>
+          <select id="delay">
+            <option value="0">No delay</option>
+            <option value="500" selected>500ms</option>
+            <option value="1000">1 second</option>
+          </select>
+        </div>
       </div>
-      <div class="field">
-        <label>Ground Truth <span class="opt">optional — enables Context Recall</span></label>
-        <textarea id="s-groundTruth" rows="2" placeholder="The correct answer if you know it..."></textarea>
+
+      <div class="error-box" id="batchError"></div>
+      <button class="run-btn" id="batchRunBtn" onclick="runBatch()">Run Batch Diagnosis →</button>
+
+      <div class="progress-panel" id="progressPanel">
+        <div class="prog-header">
+          <div class="prog-title">Running batch eval...</div>
+          <div class="prog-count" id="progCount">0 / 0</div>
+        </div>
+        <div class="prog-bar-bg">
+          <div class="prog-bar-fill" id="progBar"></div>
+        </div>
+        <div class="prog-log" id="progLog"></div>
       </div>
+
+      <div class="results-section" id="batchResults"></div>
     </div>
-    <div class="error-box" id="singleError" style="margin-top:16px;"></div>
-    <button class="run-btn" id="singleRunBtn" onclick="runSingle()" style="margin-top:16px;">Diagnose →</button>
-    <div class="single-result" id="singleResult"></div>
+
+    <!-- ===== SINGLE ===== -->
+    <div class="panel" id="panel-single">
+      <div class="manual-form">
+        <div class="field">
+          <label>User Question</label>
+          <textarea id="s-question" rows="2" placeholder="What did the user ask your RAG system?"></textarea>
+        </div>
+        <div class="field">
+          <label>Retrieved Chunks <span class="opt">(add each separately)</span></label>
+          <div class="chunks-wrap" id="s-chunksWrap">
+            <div class="chunk-row">
+              <span class="chunk-num">1</span>
+              <textarea class="s-chunk" rows="3" placeholder="Chunk 1 text from your retrieval system..."></textarea>
+            </div>
+          </div>
+          <button class="add-chunk-btn" onclick="addSingleChunk()">+ Add chunk</button>
+        </div>
+        <div class="field">
+          <label>Generated Answer</label>
+          <textarea id="s-answer" rows="3" placeholder="The answer your RAG system produced..."></textarea>
+        </div>
+        <div class="field">
+          <label>Ground Truth <span class="opt">optional — enables Context Recall</span></label>
+          <textarea id="s-groundTruth" rows="2" placeholder="The correct answer if you know it..."></textarea>
+        </div>
+      </div>
+      <div class="error-box" id="singleError" style="margin-top:16px;"></div>
+      <button class="run-btn" id="singleRunBtn" onclick="runSingle()" style="margin-top:16px;">Diagnose →</button>
+      <div class="single-result" id="singleResult"></div>
+    </div>
+
+    <div class="footer">
+      <div class="footer-left">Built with Claude Sonnet · <a
+          href="https://github.com/smit411-debug/merchant-distress-a2a" target="_blank">GitHub ↗</a></div>
+      <div class="footer-right">RAG Doctor v0.2 · calls via /api/diagnose proxy</div>
+    </div>
+
   </div>
 
-  <div class="footer">
-    <div class="footer-left">Built with Claude Sonnet · <a href="https://github.com/smit411-debug/merchant-distress-a2a" target="_blank">GitHub ↗</a></div>
-    <div class="footer-right">RAG Doctor v0.2 · calls via /api/diagnose proxy</div>
-  </div>
+  <script>
+    // ── CONFIG ────────────────────────────────────────────────────────────────
+    // When deployed on Vercel, this proxies to /api/diagnose (keeps key safe).
+    // For local dev: set to 'https://api.anthropic.com/v1/messages' and add key manually.
+    const API_URL = '/api/diagnose';
 
-</div>
+    // ── STATE ─────────────────────────────────────────────────────────────────
+    let parsedRows = [];
+    let batchResults = [];
+    let totalTokensIn = 0, totalTokensOut = 0;
+    let singleChunkCount = 1;
 
-<script>
-// ── CONFIG ────────────────────────────────────────────────────────────────
-// When deployed on Vercel, this proxies to /api/diagnose (keeps key safe).
-// For local dev: set to 'https://api.anthropic.com/v1/messages' and add key manually.
-const API_URL = '/api/diagnose';
+    // ── TABS ──────────────────────────────────────────────────────────────────
+    function switchTab(name, btn) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('panel-' + name).classList.add('active');
+    }
 
-// ── STATE ─────────────────────────────────────────────────────────────────
-let parsedRows = [];
-let batchResults = [];
-let totalTokensIn = 0, totalTokensOut = 0;
-let singleChunkCount = 1;
+    // ── FILE HANDLING ─────────────────────────────────────────────────────────
+    const uploadZone = document.getElementById('uploadZone');
+    uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+    uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+    uploadZone.addEventListener('drop', e => {
+      e.preventDefault();
+      uploadZone.classList.remove('drag');
+      const f = e.dataTransfer.files[0];
+      if (f) processFile(f);
+    });
 
-// ── TABS ──────────────────────────────────────────────────────────────────
-function switchTab(name, btn) {
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('panel-' + name).classList.add('active');
-}
+    function handleFile(input) { if (input.files[0]) processFile(input.files[0]); }
 
-// ── FILE HANDLING ─────────────────────────────────────────────────────────
-const uploadZone = document.getElementById('uploadZone');
-uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
-uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
-uploadZone.addEventListener('drop', e => {
-  e.preventDefault();
-  uploadZone.classList.remove('drag');
-  const f = e.dataTransfer.files[0];
-  if (f) processFile(f);
-});
+    function processFile(file) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        const rows = parseCSV(e.target.result);
+        if (!rows.length) return showBatchError('Could not parse CSV. Make sure it has question, chunk_1, and answer columns.');
+        parsedRows = rows;
+        document.getElementById('fileName').textContent = file.name;
+        document.getElementById('fileMeta').textContent = `${rows.length} valid rows · ${(file.size / 1024).toFixed(1)} KB`;
+        document.getElementById('filePreview').classList.add('active');
+        hideBatchError();
+      };
+      reader.readAsText(file);
+    }
 
-function handleFile(input) { if (input.files[0]) processFile(input.files[0]); }
+    function clearFile() {
+      parsedRows = [];
+      document.getElementById('csvFile').value = '';
+      document.getElementById('filePreview').classList.remove('active');
+    }
 
-function processFile(file) {
-  const reader = new FileReader();
-  reader.onload = e => {
-    const rows = parseCSV(e.target.result);
-    if (!rows.length) return showBatchError('Could not parse CSV. Make sure it has question, chunk_1, and answer columns.');
-    parsedRows = rows;
-    document.getElementById('fileName').textContent = file.name;
-    document.getElementById('fileMeta').textContent = `${rows.length} valid rows · ${(file.size/1024).toFixed(1)} KB`;
-    document.getElementById('filePreview').classList.add('active');
-    hideBatchError();
-  };
-  reader.readAsText(file);
-}
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return [];
+      const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/['"]/g, ''));
+      const rows = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const vals = parseCSVLine(lines[i]);
+        const row = {};
+        headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim().replace(/^["']|["']$/g, ''); });
+        if (row.question && row.chunk_1 && row.answer) rows.push(row);
+      }
+      return rows;
+    }
 
-function clearFile() {
-  parsedRows = [];
-  document.getElementById('csvFile').value = '';
-  document.getElementById('filePreview').classList.remove('active');
-}
+    function parseCSVLine(line) {
+      const result = []; let cur = '', inQ = false;
+      for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') { if (inQ && line[i + 1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
+        else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
+        else cur += c;
+      }
+      result.push(cur);
+      return result;
+    }
 
-function parseCSV(text) {
-  const lines = text.trim().split('\n');
-  if (lines.length < 2) return [];
-  const headers = parseCSVLine(lines[0]).map(h => h.trim().toLowerCase().replace(/['"]/g,''));
-  const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    if (!lines[i].trim()) continue;
-    const vals = parseCSVLine(lines[i]);
-    const row = {};
-    headers.forEach((h, idx) => { row[h] = (vals[idx] || '').trim().replace(/^["']|["']$/g, ''); });
-    if (row.question && row.chunk_1 && row.answer) rows.push(row);
-  }
-  return rows;
-}
-
-function parseCSVLine(line) {
-  const result = []; let cur = '', inQ = false;
-  for (let i = 0; i < line.length; i++) {
-    const c = line[i];
-    if (c === '"') { if (inQ && line[i+1] === '"') { cur += '"'; i++; } else inQ = !inQ; }
-    else if (c === ',' && !inQ) { result.push(cur); cur = ''; }
-    else cur += c;
-  }
-  result.push(cur);
-  return result;
-}
-
-// ── PROMPT BUILDER ────────────────────────────────────────────────────────
-function buildPrompt(row) {
-  const chunks = [];
-  for (let i = 1; i <= 5; i++) {
-    const c = row[`chunk_${i}`];
-    if (c && c.length > 0) chunks.push(`[CHUNK ${i}]\n${c}`);
-  }
-  const hasGT = row.ground_truth && row.ground_truth.length > 0;
-  return {
-    system: `You are RAG Doctor — a precise diagnostic engine for RAG (Retrieval Augmented Generation) systems. You analyze RAG pipeline inputs and outputs and produce structured, specific, actionable diagnostics. Never give generic advice. Ground every finding in the specific text provided.`,
-    user: `Diagnose this RAG system output across 4 eval dimensions. Reference actual text in your explanations.
+    // ── PROMPT BUILDER ────────────────────────────────────────────────────────
+    function buildPrompt(row) {
+      const chunks = [];
+      for (let i = 1; i <= 5; i++) {
+        const c = row[`chunk_${i}`];
+        if (c && c.length > 0) chunks.push(`[CHUNK ${i}]\n${c}`);
+      }
+      const hasGT = row.ground_truth && row.ground_truth.length > 0;
+      return {
+        system: `You are RAG Doctor — a precise diagnostic engine for RAG (Retrieval Augmented Generation) systems. You analyze RAG pipeline inputs and outputs and produce structured, specific, actionable diagnostics. Never give generic advice. Ground every finding in the specific text provided.`,
+        user: `Diagnose this RAG system output across 4 eval dimensions. Reference actual text in your explanations.
 
 USER QUESTION:
 ${row.question}
@@ -497,181 +1483,181 @@ Respond ONLY with valid JSON. No markdown, no backticks, no preamble. Exactly th
   },
   "verdict": "<2 sentence overall diagnosis. Name what's broken and the #1 fix.>"
 }`
-  };
-}
+      };
+    }
 
-// ── API CALL ──────────────────────────────────────────────────────────────
-async function callAPI(prompt) {
-  const resp = await fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1000,
-      system: prompt.system,
-      messages: [{ role: 'user', content: prompt.user }]
-    })
-  });
-  const data = await resp.json();
-  if (!resp.ok || !data.content) throw new Error(data.error || data.error?.message || 'API error');
-  const raw = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
-  const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
-  return { result: parsed, usage: data.usage };
-}
+    // ── API CALL ──────────────────────────────────────────────────────────────
+    async function callAPI(prompt) {
+      const resp = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-5',
+          max_tokens: 1000,
+          system: prompt.system,
+          messages: [{ role: 'user', content: prompt.user }]
+        })
+      });
+      const data = await resp.json();
+      if (!resp.ok || !data.content) throw new Error(data.error || data.error?.message || 'API error');
+      const raw = data.content.filter(b => b.type === 'text').map(b => b.text).join('');
+      const parsed = JSON.parse(raw.replace(/```json|```/g, '').trim());
+      return { result: parsed, usage: data.usage };
+    }
 
-// ── HELPERS ───────────────────────────────────────────────────────────────
-function overallScore(r) {
-  const scores = [r.faithfulness?.score, r.context_precision?.score, r.answer_relevance?.score];
-  if (r.context_recall?.score != null) scores.push(r.context_recall.score);
-  const valid = scores.filter(s => s != null);
-  return valid.length ? valid.reduce((a,b) => a+b,0) / valid.length : null;
-}
-function scoreClass(s) {
-  if (s == null) return 'warn';
-  return s >= 0.75 ? 'good' : s >= 0.45 ? 'warn' : 'bad';
-}
-function scoreColor(cls) {
-  return cls === 'good' ? 'var(--good)' : cls === 'warn' ? 'var(--warn)' : 'var(--bad)';
-}
-function fmtScore(s) { return s != null ? s.toFixed(2) : 'N/A'; }
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+    // ── HELPERS ───────────────────────────────────────────────────────────────
+    function overallScore(r) {
+      const scores = [r.faithfulness?.score, r.context_precision?.score, r.answer_relevance?.score];
+      if (r.context_recall?.score != null) scores.push(r.context_recall.score);
+      const valid = scores.filter(s => s != null);
+      return valid.length ? valid.reduce((a, b) => a + b, 0) / valid.length : null;
+    }
+    function scoreClass(s) {
+      if (s == null) return 'warn';
+      return s >= 0.75 ? 'good' : s >= 0.45 ? 'warn' : 'bad';
+    }
+    function scoreColor(cls) {
+      return cls === 'good' ? 'var(--good)' : cls === 'warn' ? 'var(--warn)' : 'var(--bad)';
+    }
+    function fmtScore(s) { return s != null ? s.toFixed(2) : 'N/A'; }
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// ── BATCH RUN ─────────────────────────────────────────────────────────────
-async function runBatch() {
-  hideBatchError();
-  if (!parsedRows.length) return showBatchError('Please upload a CSV file first.');
+    // ── BATCH RUN ─────────────────────────────────────────────────────────────
+    async function runBatch() {
+      hideBatchError();
+      if (!parsedRows.length) return showBatchError('Please upload a CSV file first.');
 
-  const limit = Math.min(parseInt(document.getElementById('rowLimit').value) || 20, parsedRows.length);
-  const concurrency = parseInt(document.getElementById('concurrency').value);
-  const delay = parseInt(document.getElementById('delay').value);
-  const rows = parsedRows.slice(0, limit);
+      const limit = Math.min(parseInt(document.getElementById('rowLimit').value) || 20, parsedRows.length);
+      const concurrency = parseInt(document.getElementById('concurrency').value);
+      const delay = parseInt(document.getElementById('delay').value);
+      const rows = parsedRows.slice(0, limit);
 
-  batchResults = new Array(rows.length).fill(null);
-  totalTokensIn = 0; totalTokensOut = 0;
+      batchResults = new Array(rows.length).fill(null);
+      totalTokensIn = 0; totalTokensOut = 0;
 
-  document.getElementById('batchRunBtn').disabled = true;
-  document.getElementById('batchResults').classList.remove('active');
-  document.getElementById('batchResults').innerHTML = '';
-  document.getElementById('progressPanel').classList.add('active');
+      document.getElementById('batchRunBtn').disabled = true;
+      document.getElementById('batchResults').classList.remove('active');
+      document.getElementById('batchResults').innerHTML = '';
+      document.getElementById('progressPanel').classList.add('active');
 
-  const logEl = document.getElementById('progLog');
-  logEl.innerHTML = rows.map((r, i) => `
+      const logEl = document.getElementById('progLog');
+      logEl.innerHTML = rows.map((r, i) => `
     <div class="log-row" id="log-${i}">
-      <span class="log-num">#${String(i+1).padStart(2,'0')}</span>
+      <span class="log-num">#${String(i + 1).padStart(2, '0')}</span>
       <span class="log-q">${r.question}</span>
       <span class="log-status" style="color:var(--muted2)">waiting</span>
     </div>`).join('');
 
-  updateProgress(0, rows.length);
+      updateProgress(0, rows.length);
 
-  let completed = 0;
+      let completed = 0;
 
-  async function runOne(row, idx) {
-    setLogStatus(idx, 'running', '⟳ running');
-    try {
-      const { result, usage } = await callAPI(buildPrompt(row));
-      totalTokensIn += usage?.input_tokens || 0;
-      totalTokensOut += usage?.output_tokens || 0;
-      const overall = overallScore(result);
-      batchResults[idx] = { row, result, overall, error: null };
-      setLogStatus(idx, 'done', overall != null ? overall.toFixed(2) : '✓');
-    } catch(err) {
-      batchResults[idx] = { row, result: null, overall: null, error: err.message };
-      setLogStatus(idx, 'error', 'error');
+      async function runOne(row, idx) {
+        setLogStatus(idx, 'running', '⟳ running');
+        try {
+          const { result, usage } = await callAPI(buildPrompt(row));
+          totalTokensIn += usage?.input_tokens || 0;
+          totalTokensOut += usage?.output_tokens || 0;
+          const overall = overallScore(result);
+          batchResults[idx] = { row, result, overall, error: null };
+          setLogStatus(idx, 'done', overall != null ? overall.toFixed(2) : '✓');
+        } catch (err) {
+          batchResults[idx] = { row, result: null, overall: null, error: err.message };
+          setLogStatus(idx, 'error', 'error');
+        }
+        completed++;
+        updateProgress(completed, rows.length);
+        if (delay > 0) await sleep(delay);
+      }
+
+      for (let i = 0; i < rows.length; i += concurrency) {
+        const group = rows.slice(i, i + concurrency).map((row, j) => runOne(row, i + j));
+        await Promise.all(group);
+      }
+
+      document.getElementById('batchRunBtn').disabled = false;
+      renderBatchResults();
     }
-    completed++;
-    updateProgress(completed, rows.length);
-    if (delay > 0) await sleep(delay);
-  }
 
-  for (let i = 0; i < rows.length; i += concurrency) {
-    const group = rows.slice(i, i + concurrency).map((row, j) => runOne(row, i + j));
-    await Promise.all(group);
-  }
+    function setLogStatus(idx, cls, text) {
+      const row = document.getElementById(`log-${idx}`);
+      if (!row) return;
+      row.className = `log-row ${cls}`;
+      row.querySelector('.log-status').textContent = text;
+    }
 
-  document.getElementById('batchRunBtn').disabled = false;
-  renderBatchResults();
-}
+    function updateProgress(done, total) {
+      document.getElementById('progCount').textContent = `${done} / ${total}`;
+      document.getElementById('progBar').style.width = `${total ? (done / total * 100) : 0}%`;
+    }
 
-function setLogStatus(idx, cls, text) {
-  const row = document.getElementById(`log-${idx}`);
-  if (!row) return;
-  row.className = `log-row ${cls}`;
-  row.querySelector('.log-status').textContent = text;
-}
+    // ── RENDER BATCH RESULTS ──────────────────────────────────────────────────
+    function renderBatchResults() {
+      const valid = batchResults.filter(r => r && !r.error);
+      const errCount = batchResults.filter(r => r && r.error).length;
+      if (!valid.length) { showBatchError('All rows failed. Check your CSV format.'); return; }
 
-function updateProgress(done, total) {
-  document.getElementById('progCount').textContent = `${done} / ${total}`;
-  document.getElementById('progBar').style.width = `${total ? (done/total*100) : 0}%`;
-}
+      const avg = dim => {
+        const vals = valid.map(r => r.result?.[dim]?.score).filter(v => v != null);
+        return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+      };
+      const avgF = avg('faithfulness'), avgP = avg('context_precision');
+      const avgR = avg('context_recall'), avgA = avg('answer_relevance');
+      const allAvgs = [avgF, avgP, avgR, avgA].filter(v => v != null);
+      const avgOverall = allAvgs.length ? allAvgs.reduce((a, b) => a + b, 0) / allAvgs.length : null;
+      const overallCls = scoreClass(avgOverall);
 
-// ── RENDER BATCH RESULTS ──────────────────────────────────────────────────
-function renderBatchResults() {
-  const valid = batchResults.filter(r => r && !r.error);
-  const errCount = batchResults.filter(r => r && r.error).length;
-  if (!valid.length) { showBatchError('All rows failed. Check your CSV format.'); return; }
+      const below = valid.filter(r => r.overall != null && r.overall < 0.5).length;
 
-  const avg = dim => {
-    const vals = valid.map(r => r.result?.[dim]?.score).filter(v => v != null);
-    return vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
-  };
-  const avgF = avg('faithfulness'), avgP = avg('context_precision');
-  const avgR = avg('context_recall'), avgA = avg('answer_relevance');
-  const allAvgs = [avgF, avgP, avgR, avgA].filter(v => v != null);
-  const avgOverall = allAvgs.length ? allAvgs.reduce((a,b)=>a+b,0)/allAvgs.length : null;
-  const overallCls = scoreClass(avgOverall);
+      const bc = (stage, v) => valid.filter(r => r.result?.pipeline_blame?.[stage] === v).length;
+      const chunkScore = bc('chunking', 'culprit') + bc('chunking', 'partial') * 0.5;
+      const retScore = bc('retrieval', 'culprit') + bc('retrieval', 'partial') * 0.5;
+      const genScore = bc('generation', 'culprit') + bc('generation', 'partial') * 0.5;
+      const blameMax = Math.max(chunkScore, retScore, genScore, 1);
 
-  const below = valid.filter(r => r.overall != null && r.overall < 0.5).length;
+      const sorted = [...valid].sort((a, b) => (a.overall || 0) - (b.overall || 0));
+      const worst = sorted.slice(0, 5);
 
-  const bc = (stage, v) => valid.filter(r => r.result?.pipeline_blame?.[stage] === v).length;
-  const chunkScore = bc('chunking','culprit') + bc('chunking','partial')*0.5;
-  const retScore   = bc('retrieval','culprit') + bc('retrieval','partial')*0.5;
-  const genScore   = bc('generation','culprit') + bc('generation','partial')*0.5;
-  const blameMax = Math.max(chunkScore, retScore, genScore, 1);
+      const insights = [];
+      if (avgF != null && avgF < 0.6) insights.push(`Faithfulness is low (${avgF.toFixed(2)}) — the LLM is generating claims not grounded in retrieved chunks. Add a stricter grounding instruction to your generation prompt.`);
+      if (avgP != null && avgP < 0.6) insights.push(`Context precision is low (${avgP.toFixed(2)}) — too many irrelevant chunks are being retrieved. Tighten your metadata filters or reduce top-k.`);
+      if (avgA != null && avgA < 0.65) insights.push(`Answer relevance is low (${avgA.toFixed(2)}) — answers are drifting from user intent. Review your query understanding and prompt structure.`);
+      if (genScore > retScore && genScore > chunkScore) insights.push(`Generation is the #1 failure layer across this dataset — retrieval looks reasonable but the LLM is going beyond the context.`);
+      if (retScore > genScore && retScore > chunkScore) insights.push(`Retrieval is the #1 failure layer — wrong or irrelevant chunks are being fetched. Consider adding a cross-encoder reranker.`);
+      if (below > valid.length * 0.3) insights.push(`${below} of ${valid.length} rows scored below 0.5 — more than 30% of your RAG outputs are poor quality. This needs fixing before production.`);
+      if (!insights.length) insights.push(`Overall quality looks solid. Study the worst-scoring rows to find edge cases before shipping.`);
 
-  const sorted = [...valid].sort((a,b) => (a.overall||0)-(b.overall||0));
-  const worst = sorted.slice(0,5);
+      const costEst = ((totalTokensIn * 0.000003) + (totalTokensOut * 0.000015)).toFixed(4);
 
-  const insights = [];
-  if (avgF != null && avgF < 0.6) insights.push(`Faithfulness is low (${avgF.toFixed(2)}) — the LLM is generating claims not grounded in retrieved chunks. Add a stricter grounding instruction to your generation prompt.`);
-  if (avgP != null && avgP < 0.6) insights.push(`Context precision is low (${avgP.toFixed(2)}) — too many irrelevant chunks are being retrieved. Tighten your metadata filters or reduce top-k.`);
-  if (avgA != null && avgA < 0.65) insights.push(`Answer relevance is low (${avgA.toFixed(2)}) — answers are drifting from user intent. Review your query understanding and prompt structure.`);
-  if (genScore > retScore && genScore > chunkScore) insights.push(`Generation is the #1 failure layer across this dataset — retrieval looks reasonable but the LLM is going beyond the context.`);
-  if (retScore > genScore && retScore > chunkScore) insights.push(`Retrieval is the #1 failure layer — wrong or irrelevant chunks are being fetched. Consider adding a cross-encoder reranker.`);
-  if (below > valid.length * 0.3) insights.push(`${below} of ${valid.length} rows scored below 0.5 — more than 30% of your RAG outputs are poor quality. This needs fixing before production.`);
-  if (!insights.length) insights.push(`Overall quality looks solid. Study the worst-scoring rows to find edge cases before shipping.`);
-
-  const costEst = ((totalTokensIn*0.000003)+(totalTokensOut*0.000015)).toFixed(4);
-
-  const dimCards = [
-    { label:'Faithfulness', val:avgF },
-    { label:'Context Precision', val:avgP },
-    { label:'Context Recall', val:avgR },
-    { label:'Answer Relevance', val:avgA },
-  ].map(d => {
-    const cls = scoreClass(d.val);
-    const pct = d.val != null ? d.val*100 : 0;
-    return `<div class="dim-bar-card">
+      const dimCards = [
+        { label: 'Faithfulness', val: avgF },
+        { label: 'Context Precision', val: avgP },
+        { label: 'Context Recall', val: avgR },
+        { label: 'Answer Relevance', val: avgA },
+      ].map(d => {
+        const cls = scoreClass(d.val);
+        const pct = d.val != null ? d.val * 100 : 0;
+        return `<div class="dim-bar-card">
       <div class="dim-bar-top">
         <div class="dim-bar-name">${d.label}</div>
         <div class="dim-bar-score" style="color:${scoreColor(cls)}">${fmtScore(d.val)}</div>
       </div>
       <div class="dim-bar-bg"><div class="dim-bar-fill" style="width:${pct}%;background:${scoreColor(cls)}"></div></div>
     </div>`;
-  }).join('');
+      }).join('');
 
-  const worstRows = worst.map(r => {
-    const cls = scoreClass(r.overall);
-    return `<tr>
+      const worstRows = worst.map(r => {
+        const cls = scoreClass(r.overall);
+        return `<tr>
       <td class="q-cell" title="${r.row.question}">${r.row.question}</td>
       <td><span class="score-pill ${cls}">${fmtScore(r.overall)}</span></td>
       <td><span class="score-pill ${scoreClass(r.result?.faithfulness?.score)}">${fmtScore(r.result?.faithfulness?.score)}</span></td>
       <td><span class="score-pill ${scoreClass(r.result?.context_precision?.score)}">${fmtScore(r.result?.context_precision?.score)}</span></td>
-      <td class="verdict-cell">${(r.result?.verdict||'—').slice(0,120)}${(r.result?.verdict||'').length>120?'…':''}</td>
+      <td class="verdict-cell">${(r.result?.verdict || '—').slice(0, 120)}${(r.result?.verdict || '').length > 120 ? '…' : ''}</td>
     </tr>`;
-  }).join('');
+      }).join('');
 
-  const html = `
+      const html = `
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
       <div style="font-family:'Syne',sans-serif;font-size:20px;font-weight:800;">Batch Report</div>
       <div style="font-family:'Syne',sans-serif;font-size:36px;font-weight:800;color:${scoreColor(overallCls)}">${fmtScore(avgOverall)}</div>
@@ -681,7 +1667,7 @@ function renderBatchResults() {
       <div class="sum-card"><div class="sum-val" style="color:var(--accent)">${valid.length}</div><div class="sum-label">Rows evaled</div></div>
       <div class="sum-card"><div class="sum-val" style="color:var(--red)">${below}</div><div class="sum-label">Below 0.5</div></div>
       <div class="sum-card"><div class="sum-val" style="color:var(--warn)">${errCount}</div><div class="sum-label">Errors</div></div>
-      <div class="sum-card"><div class="sum-val" style="color:var(--text)">${(totalTokensIn+totalTokensOut).toLocaleString()}</div><div class="sum-label">Total tokens</div></div>
+      <div class="sum-card"><div class="sum-val" style="color:var(--text)">${(totalTokensIn + totalTokensOut).toLocaleString()}</div><div class="sum-label">Total tokens</div></div>
       <div class="sum-card"><div class="sum-val" style="color:var(--muted)">$${costEst}</div><div class="sum-label">Est. cost</div></div>
     </div>
 
@@ -689,17 +1675,17 @@ function renderBatchResults() {
 
     <div class="blame-summary">
       <div class="blame-title">⚠ Pipeline blame distribution</div>
-      ${[['Chunking',chunkScore],['Retrieval',retScore],['Generation',genScore]].map(([label,val])=>`
+      ${[['Chunking', chunkScore], ['Retrieval', retScore], ['Generation', genScore]].map(([label, val]) => `
         <div class="blame-row">
           <div class="blame-stage">${label}</div>
-          <div class="blame-bar-bg"><div class="blame-bar-fill" style="width:${(val/blameMax*100).toFixed(0)}%;background:var(--red)"></div></div>
+          <div class="blame-bar-bg"><div class="blame-bar-fill" style="width:${(val / blameMax * 100).toFixed(0)}%;background:var(--red)"></div></div>
           <div class="blame-pct">${val.toFixed(0)} issues</div>
         </div>`).join('')}
     </div>
 
     <div class="insight-card">
       <div class="insight-title">Key Insights</div>
-      <ul class="insight-list">${insights.map(i=>`<li>${i}</li>`).join('')}</ul>
+      <ul class="insight-list">${insights.map(i => `<li>${i}</li>`).join('')}</ul>
     </div>
 
     <div class="table-section">
@@ -729,133 +1715,133 @@ function renderBatchResults() {
     </div>
   `;
 
-  const el = document.getElementById('batchResults');
-  el.innerHTML = html;
-  el.classList.add('active');
-  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-}
+      const el = document.getElementById('batchResults');
+      el.innerHTML = html;
+      el.classList.add('active');
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
 
-// ── CSV EXPORT ────────────────────────────────────────────────────────────
-function exportCSV() {
-  const valid = batchResults.filter(r => r != null);
-  if (!valid.length) return;
+    // ── CSV EXPORT ────────────────────────────────────────────────────────────
+    function exportCSV() {
+      const valid = batchResults.filter(r => r != null);
+      if (!valid.length) return;
 
-  const headers = [
-    'question','answer','ground_truth',
-    'overall_score',
-    'faithfulness_score','faithfulness_explanation','faithfulness_fix',
-    'context_precision_score','context_precision_explanation','context_precision_fix',
-    'context_recall_score','context_recall_explanation','context_recall_fix',
-    'answer_relevance_score','answer_relevance_explanation','answer_relevance_fix',
-    'chunking_blame','retrieval_blame','generation_blame',
-    'verdict','error'
-  ];
+      const headers = [
+        'question', 'answer', 'ground_truth',
+        'overall_score',
+        'faithfulness_score', 'faithfulness_explanation', 'faithfulness_fix',
+        'context_precision_score', 'context_precision_explanation', 'context_precision_fix',
+        'context_recall_score', 'context_recall_explanation', 'context_recall_fix',
+        'answer_relevance_score', 'answer_relevance_explanation', 'answer_relevance_fix',
+        'chunking_blame', 'retrieval_blame', 'generation_blame',
+        'verdict', 'error'
+      ];
 
-  const rows = valid.map(r => {
-    const res = r.result;
-    const blame = res?.pipeline_blame || {};
-    return [
-      r.row.question,
-      r.row.answer,
-      r.row.ground_truth || '',
-      r.overall != null ? r.overall.toFixed(3) : '',
-      res?.faithfulness?.score != null ? res.faithfulness.score.toFixed(3) : '',
-      res?.faithfulness?.explanation || '',
-      res?.faithfulness?.fix || '',
-      res?.context_precision?.score != null ? res.context_precision.score.toFixed(3) : '',
-      res?.context_precision?.explanation || '',
-      res?.context_precision?.fix || '',
-      res?.context_recall?.score != null ? res.context_recall.score.toFixed(3) : '',
-      res?.context_recall?.explanation || '',
-      res?.context_recall?.fix || '',
-      res?.answer_relevance?.score != null ? res.answer_relevance.score.toFixed(3) : '',
-      res?.answer_relevance?.explanation || '',
-      res?.answer_relevance?.fix || '',
-      blame.chunking || '',
-      blame.retrieval || '',
-      blame.generation || '',
-      res?.verdict || '',
-      r.error || ''
-    ];
-  });
+      const rows = valid.map(r => {
+        const res = r.result;
+        const blame = res?.pipeline_blame || {};
+        return [
+          r.row.question,
+          r.row.answer,
+          r.row.ground_truth || '',
+          r.overall != null ? r.overall.toFixed(3) : '',
+          res?.faithfulness?.score != null ? res.faithfulness.score.toFixed(3) : '',
+          res?.faithfulness?.explanation || '',
+          res?.faithfulness?.fix || '',
+          res?.context_precision?.score != null ? res.context_precision.score.toFixed(3) : '',
+          res?.context_precision?.explanation || '',
+          res?.context_precision?.fix || '',
+          res?.context_recall?.score != null ? res.context_recall.score.toFixed(3) : '',
+          res?.context_recall?.explanation || '',
+          res?.context_recall?.fix || '',
+          res?.answer_relevance?.score != null ? res.answer_relevance.score.toFixed(3) : '',
+          res?.answer_relevance?.explanation || '',
+          res?.answer_relevance?.fix || '',
+          blame.chunking || '',
+          blame.retrieval || '',
+          blame.generation || '',
+          res?.verdict || '',
+          r.error || ''
+        ];
+      });
 
-  const csvContent = [headers, ...rows]
-    .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
-    .join('\n');
+      const csvContent = [headers, ...rows]
+        .map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+        .join('\n');
 
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `rag-doctor-results-${new Date().toISOString().slice(0,10)}.csv`;
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-  URL.revokeObjectURL(url);
-}
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `rag-doctor-results-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
 
-function resetBatch() {
-  document.getElementById('batchResults').classList.remove('active');
-  document.getElementById('batchResults').innerHTML = '';
-  document.getElementById('progressPanel').classList.remove('active');
-  batchResults = [];
-}
+    function resetBatch() {
+      document.getElementById('batchResults').classList.remove('active');
+      document.getElementById('batchResults').innerHTML = '';
+      document.getElementById('progressPanel').classList.remove('active');
+      batchResults = [];
+    }
 
-function showBatchError(msg) { const e = document.getElementById('batchError'); e.textContent = msg; e.classList.add('active'); }
-function hideBatchError() { document.getElementById('batchError').classList.remove('active'); }
+    function showBatchError(msg) { const e = document.getElementById('batchError'); e.textContent = msg; e.classList.add('active'); }
+    function hideBatchError() { document.getElementById('batchError').classList.remove('active'); }
 
-// ── SINGLE DIAGNOSIS ──────────────────────────────────────────────────────
-function addSingleChunk() {
-  singleChunkCount++;
-  const wrap = document.getElementById('s-chunksWrap');
-  const row = document.createElement('div');
-  row.className = 'chunk-row';
-  row.innerHTML = `<span class="chunk-num">${singleChunkCount}</span><textarea class="s-chunk" rows="3" placeholder="Chunk ${singleChunkCount} text..."></textarea><button class="remove-btn" onclick="this.closest('.chunk-row').remove()">×</button>`;
-  wrap.appendChild(row);
-}
+    // ── SINGLE DIAGNOSIS ──────────────────────────────────────────────────────
+    function addSingleChunk() {
+      singleChunkCount++;
+      const wrap = document.getElementById('s-chunksWrap');
+      const row = document.createElement('div');
+      row.className = 'chunk-row';
+      row.innerHTML = `<span class="chunk-num">${singleChunkCount}</span><textarea class="s-chunk" rows="3" placeholder="Chunk ${singleChunkCount} text..."></textarea><button class="remove-btn" onclick="this.closest('.chunk-row').remove()">×</button>`;
+      wrap.appendChild(row);
+    }
 
-async function runSingle() {
-  const q = document.getElementById('s-question').value.trim();
-  const chunks = Array.from(document.querySelectorAll('.s-chunk')).map(t => t.value.trim()).filter(Boolean);
-  const answer = document.getElementById('s-answer').value.trim();
-  const gt = document.getElementById('s-groundTruth').value.trim();
-  const errEl = document.getElementById('singleError');
-  errEl.classList.remove('active');
+    async function runSingle() {
+      const q = document.getElementById('s-question').value.trim();
+      const chunks = Array.from(document.querySelectorAll('.s-chunk')).map(t => t.value.trim()).filter(Boolean);
+      const answer = document.getElementById('s-answer').value.trim();
+      const gt = document.getElementById('s-groundTruth').value.trim();
+      const errEl = document.getElementById('singleError');
+      errEl.classList.remove('active');
 
-  if (!q) { errEl.textContent = 'Enter a question.'; errEl.classList.add('active'); return; }
-  if (!chunks.length) { errEl.textContent = 'Add at least one retrieved chunk.'; errEl.classList.add('active'); return; }
-  if (!answer) { errEl.textContent = 'Enter the generated answer.'; errEl.classList.add('active'); return; }
+      if (!q) { errEl.textContent = 'Enter a question.'; errEl.classList.add('active'); return; }
+      if (!chunks.length) { errEl.textContent = 'Add at least one retrieved chunk.'; errEl.classList.add('active'); return; }
+      if (!answer) { errEl.textContent = 'Enter the generated answer.'; errEl.classList.add('active'); return; }
 
-  const btn = document.getElementById('singleRunBtn');
-  btn.disabled = true; btn.textContent = 'Diagnosing...';
+      const btn = document.getElementById('singleRunBtn');
+      btn.disabled = true; btn.textContent = 'Diagnosing...';
 
-  const row = { question: q, answer, ground_truth: gt };
-  chunks.forEach((c, i) => { row[`chunk_${i+1}`] = c; });
+      const row = { question: q, answer, ground_truth: gt };
+      chunks.forEach((c, i) => { row[`chunk_${i + 1}`] = c; });
 
-  try {
-    const { result, usage } = await callAPI(buildPrompt(row));
-    renderSingleResult(result, usage);
-  } catch(err) {
-    errEl.textContent = 'Error: ' + err.message; errEl.classList.add('active');
-  }
-  btn.disabled = false; btn.textContent = 'Diagnose →';
-}
+      try {
+        const { result, usage } = await callAPI(buildPrompt(row));
+        renderSingleResult(result, usage);
+      } catch (err) {
+        errEl.textContent = 'Error: ' + err.message; errEl.classList.add('active');
+      }
+      btn.disabled = false; btn.textContent = 'Diagnose →';
+    }
 
-function renderSingleResult(r, usage) {
-  const overall = overallScore(r);
-  const overallCls = scoreClass(overall);
-  const costEst = usage ? '$' + ((usage.input_tokens*0.000003)+(usage.output_tokens*0.000015)).toFixed(5) : '< $0.01';
-  const blame = r.pipeline_blame || {};
-  const stageLabel = s => s==='culprit'?'✗ Problem':s==='partial'?'~ Partial':'✓ OK';
+    function renderSingleResult(r, usage) {
+      const overall = overallScore(r);
+      const overallCls = scoreClass(overall);
+      const costEst = usage ? '$' + ((usage.input_tokens * 0.000003) + (usage.output_tokens * 0.000015)).toFixed(5) : '< $0.01';
+      const blame = r.pipeline_blame || {};
+      const stageLabel = s => s === 'culprit' ? '✗ Problem' : s === 'partial' ? '~ Partial' : '✓ OK';
 
-  const dims = [
-    {key:'faithfulness',label:'Faithfulness'},
-    {key:'context_precision',label:'Context Precision'},
-    {key:'context_recall',label:'Context Recall'},
-    {key:'answer_relevance',label:'Answer Relevance'},
-  ];
+      const dims = [
+        { key: 'faithfulness', label: 'Faithfulness' },
+        { key: 'context_precision', label: 'Context Precision' },
+        { key: 'context_recall', label: 'Context Recall' },
+        { key: 'answer_relevance', label: 'Answer Relevance' },
+      ];
 
-  const html = `
+      const html = `
     <div style="margin-top:24px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div style="font-family:'Syne',sans-serif;font-size:18px;font-weight:800;">Diagnosis</div>
@@ -864,46 +1850,47 @@ function renderSingleResult(r, usage) {
 
       <div class="insight-card" style="margin-bottom:16px;">
         <div class="insight-title">Verdict</div>
-        <div style="font-size:13px;line-height:1.75">${r.verdict||'—'}</div>
+        <div style="font-size:13px;line-height:1.75">${r.verdict || '—'}</div>
       </div>
 
       <div class="score-grid-2">
         ${dims.map(d => {
-          const dim = r[d.key]; const cls = scoreClass(dim?.score);
-          return `<div class="score-card ${cls}">
+        const dim = r[d.key]; const cls = scoreClass(dim?.score);
+        return `<div class="score-card ${cls}">
             <div class="score-card-top"><div class="score-name">${d.label}</div><div class="score-num">${fmtScore(dim?.score)}</div></div>
-            <div class="score-bar-bg2"><div class="score-bar-fill2" style="width:${dim?.score!=null?dim.score*100:0}%"></div></div>
-            <div class="score-expl">${dim?.explanation||'—'}</div>
-            <div class="score-fix">→ ${dim?.fix||'—'}</div>
+            <div class="score-bar-bg2"><div class="score-bar-fill2" style="width:${dim?.score != null ? dim.score * 100 : 0}%"></div></div>
+            <div class="score-expl">${dim?.explanation || '—'}</div>
+            <div class="score-fix">→ ${dim?.fix || '—'}</div>
           </div>`;
-        }).join('')}
+      }).join('')}
       </div>
 
       <div class="blame-summary" style="margin-bottom:16px;">
         <div class="blame-title">Pipeline Blame</div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          ${['chunking','retrieval','generation'].map(stage=>`
+          ${['chunking', 'retrieval', 'generation'].map(stage => `
             <div style="flex:1;min-width:120px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
               <div style="font-family:'Syne',sans-serif;font-size:11px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:6px;">${stage}</div>
-              <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:${blame[stage]==='culprit'?'var(--red)':blame[stage]==='partial'?'var(--warn)':'var(--good)'}">${stageLabel(blame[stage])}</div>
-              <div style="font-size:10px;color:var(--muted);margin-top:4px;">${blame[stage+'_note']||''}</div>
+              <div style="font-family:'Syne',sans-serif;font-size:12px;font-weight:700;color:${blame[stage] === 'culprit' ? 'var(--red)' : blame[stage] === 'partial' ? 'var(--warn)' : 'var(--good)'}">${stageLabel(blame[stage])}</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:4px;">${blame[stage + '_note'] || ''}</div>
             </div>`).join('')}
         </div>
       </div>
 
       <div class="cost-strip">
-        <div class="cost-item"><div class="cost-val">${usage?.input_tokens||'—'}</div><div class="cost-label">Input tokens</div></div>
+        <div class="cost-item"><div class="cost-val">${usage?.input_tokens || '—'}</div><div class="cost-label">Input tokens</div></div>
         <div class="cost-divider"></div>
-        <div class="cost-item"><div class="cost-val">${usage?.output_tokens||'—'}</div><div class="cost-label">Output tokens</div></div>
+        <div class="cost-item"><div class="cost-val">${usage?.output_tokens || '—'}</div><div class="cost-label">Output tokens</div></div>
         <div class="cost-divider"></div>
         <div class="cost-item"><div class="cost-val">${costEst}</div><div class="cost-label">Est. cost</div></div>
       </div>
     </div>`;
 
-  const el = document.getElementById('singleResult');
-  el.innerHTML = html; el.classList.add('active');
-  setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-}
-</script>
+      const el = document.getElementById('singleResult');
+      el.innerHTML = html; el.classList.add('active');
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+    }
+  </script>
 </body>
+
 </html>
